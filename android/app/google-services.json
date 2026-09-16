@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "407000492909",
+    "project_id": "studyquest-fb520",
+    "storage_bucket": "studyquest-fb520.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:407000492909:android:53318f6abd7a63aadf8864",
+        "android_client_info": {
+          "package_name": "com.example.e_learning"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDlDpWcb98lFtOnagUayJr_0n1Of63Kpo4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
