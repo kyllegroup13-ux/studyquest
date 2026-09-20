@@ -72,6 +72,7 @@ flutter:
    - assets/images/word_forge_icon.png
    - assets/images/mind_rush_icon.png
    - assets/images/link_up_icon.png
+   - assets/images/notebook_icon.png
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

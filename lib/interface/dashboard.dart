@@ -1,11 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:e_learning/interface/reviewer.dart';
+import 'package:e_learning/interface/profile.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
   @override
   State<HomePage> createState() => _HomePageState();
+}
+
+String getUserName() {
+  final User? user = FirebaseAuth.instance.currentUser;
+
+  return user?.displayName ?? 'Student';
 }
 
 class _HomePageState extends State<HomePage> {
@@ -59,7 +68,7 @@ class _HomePageState extends State<HomePage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Hi, User!',
+                                'Hi, ${getUserName()}!',
                                 style: GoogleFonts.nunito(
                                   fontSize: 30,
                                   fontWeight: FontWeight.w800,
@@ -181,24 +190,40 @@ class _HomePageState extends State<HomePage> {
 
       child: Row(
         children: [
-          _buildNavItem(index: 0, icon: Icons.home_outlined, label: 'Home'),
+          _buildNavItem(
+            icon: Icons.home_outlined,
+            label: 'Home',
+            isActive: true,
+            onTap: () {
+              // Disabled because Home is already active
+            },
+          ),
 
           _buildNavItem(
-            index: 1,
             icon: Icons.menu_book_outlined,
             label: 'Reviewers',
+            isActive: false,
+            onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const ReviewersPage()));
+            },
           ),
 
           _buildNavItem(
-            index: 2,
             icon: Icons.workspace_premium_outlined,
             label: 'Awards',
+            isActive: false,
+            onTap: () {
+              // Navigate to Awards
+            },
           ),
 
           _buildNavItem(
-            index: 3,
             icon: Icons.account_circle_outlined,
             label: 'Profile',
+            isActive: false,
+            onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfilePage()));
+            },
           ),
         ],
       ),
@@ -206,27 +231,21 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildNavItem({
-    required int index,
     required IconData icon,
     required String label,
+    required bool isActive,
+    required VoidCallback onTap,
   }) {
-    final bool isSelected = selectedIndex == index;
-
     return Expanded(
       child: GestureDetector(
-        onTap: () {
-          setState(() {
-            selectedIndex = index;
-          });
-
-          // Add navigation here
-        },
+        onTap: isActive ? null : onTap,
 
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(vertical: 6),
           decoration: BoxDecoration(
-            color: isSelected ? Colors.white : Colors.transparent,
+            // Highlight active button
+            color: isActive ? Colors.white : Colors.transparent,
             borderRadius: BorderRadius.circular(30),
           ),
 
@@ -235,8 +254,8 @@ class _HomePageState extends State<HomePage> {
             children: [
               Icon(
                 icon,
-                size: 25,
-                color: isSelected ? const Color(0xFF6064F4) : Colors.black,
+                size: 30,
+                color: isActive ? const Color(0xFF6064F4) : Colors.black,
               ),
 
               const SizedBox(height: 2),
@@ -246,7 +265,7 @@ class _HomePageState extends State<HomePage> {
                 style: GoogleFonts.nunito(
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
-                  color: isSelected ? const Color(0xFF6064F4) : Colors.black,
+                  color: isActive ? const Color(0xFF6064F4) : Colors.black,
                 ),
               ),
             ],
@@ -276,7 +295,8 @@ class GameCard extends StatelessWidget {
     required this.backgroundColor,
     required this.imageBackgroundColor,
     required this.imagePath,
-    required this.onTap, required int imageHeight,
+    required this.onTap,
+    required int imageHeight,
   });
 
   @override
@@ -305,7 +325,12 @@ class GameCard extends StatelessWidget {
                   color: imageBackgroundColor,
                   borderRadius: BorderRadius.circular(13),
                 ),
-                child: Image.asset(imagePath, width: 100, height: 100, fit: BoxFit.contain),
+                child: Image.asset(
+                  imagePath,
+                  width: 100,
+                  height: 100,
+                  fit: BoxFit.contain,
+                ),
               ),
 
               const SizedBox(width: 14),
@@ -331,8 +356,8 @@ class GameCard extends StatelessWidget {
                     Text(
                       description,
                       style: GoogleFonts.nunito(
-                        fontSize: 11,
-                        height: 1.2,
+                        fontSize: 12,
+                        height: 1,
                         fontWeight: FontWeight.w600,
                         color: Colors.white,
                       ),

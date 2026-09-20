@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:e_learning/interface/signup.dart';
+import 'package:e_learning/interface/login.dart';
 import 'package:e_learning/interface/startup_two.dart';
+
 
 class StartupThree extends StatefulWidget {
   const StartupThree({super.key});
@@ -101,7 +102,7 @@ class _StartupThreeState extends State<StartupThree> {
                       context,
                       PageRouteBuilder(
                         pageBuilder: (context, animation, secondaryAnimation) =>
-                            const SignUpPage(),
+                            const LoginPage(),
                         transitionsBuilder:
                             (context, animation, secondaryAnimation, child) {
                               final curvedAnimation = CurvedAnimation(

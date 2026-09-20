@@ -3,6 +3,7 @@ import 'package:e_learning/interface/startup_three.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:e_learning/interface/login.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:e_learning/services/auth_service.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -12,7 +13,9 @@ class SignUpPage extends StatefulWidget {
 }
 
 class _SignUpPageState extends State<SignUpPage> {
-  final fullNameController = TextEditingController();
+  final AuthService _authService = AuthService();
+
+  final userNameController = TextEditingController();
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
@@ -22,24 +25,86 @@ class _SignUpPageState extends State<SignUpPage> {
 
   @override
   void dispose() {
-    fullNameController.dispose();
+    userNameController.dispose();
     emailController.dispose();
     passwordController.dispose();
     confirmPasswordController.dispose();
     super.dispose();
   }
 
-  Future<void> registerUser(String email, String password) async {
-    try {
-      UserCredential userCredential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
-            email: email.trim(),
-            password: password.trim(),
-          );
+  Future<void> signUpUser() async {
+    final name = userNameController.text.trim();
+    final email = emailController.text.trim();
+    final password = passwordController.text;
+    final confirmPassword = confirmPasswordController.text;
 
-      debugPrint('Registered: ${userCredential.user?.email}');
+    // Check empty fields
+    if (name.isEmpty ||
+        email.isEmpty ||
+        password.isEmpty ||
+        confirmPassword.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in all fields.')),
+      );
+      return;
+    }
+
+    // Validate email
+    if (!email.contains('@') || !email.contains('.')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid email address.')),
+      );
+      return;
+    }
+
+    // Validate password
+    if (password.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Password must be at least 6 characters.'),
+        ),
+      );
+      return;
+    }
+
+    // Confirm passwords match
+    if (password != confirmPassword) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Passwords do not match.')));
+      return;
+    }
+
+    try {
+      // Call Firebase through AuthService
+      await _authService.register(name, email, password);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Account created successfully!')),
+      );
+
+      // Navigate after successful registration
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginPage()),
+      );
     } on FirebaseAuthException catch (e) {
-      debugPrint(e.message);
+      if (!mounted) return;
+
+      String message = 'Unable to create account.';
+
+      if (e.code == 'email-already-in-use') {
+        message = 'This email is already registered.';
+      } else if (e.code == 'invalid-email') {
+        message = 'Please enter a valid email address.';
+      } else if (e.code == 'weak-password') {
+        message = 'Your password is too weak.';
+      }
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
@@ -115,8 +180,8 @@ class _SignUpPageState extends State<SignUpPage> {
 
                       // Full Name
                       _buildTextField(
-                        controller: fullNameController,
-                        hintText: 'Full name',
+                        controller: userNameController,
+                        hintText: 'Username',
                         icon: Icons.person_outline,
                       ),
 
@@ -183,19 +248,7 @@ class _SignUpPageState extends State<SignUpPage> {
                         width: double.infinity,
                         height: 56,
                         child: ElevatedButton(
-                          onPressed: () async {
-                            await registerUser(
-                              emailController.text,
-                              passwordController.text,
-                            );
-                            Navigator.push(
-                              // ignore: use_build_context_synchronously
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const LoginPage(),
-                              ),
-                            );
-                          },
+                          onPressed: signUpUser,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF6064F4),
                             foregroundColor: Colors.white,

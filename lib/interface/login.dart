@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:e_learning/interface/signup.dart';
 import 'package:e_learning/interface/dashboard.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:e_learning/services/auth_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -14,6 +15,7 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+  final AuthService _authService = AuthService();
 
   bool hidePassword = true;
 
@@ -24,17 +26,81 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  Future<void> loginUser(String email, String password) async {
-    try {
-      UserCredential userCredential = await FirebaseAuth.instance
-          .signInWithEmailAndPassword(
-            email: email.trim(),
-            password: password.trim(),
-          );
+  Future<void> loginUser() async {
+    final email = emailController.text.trim();
+    final password = passwordController.text;
 
-      debugPrint('Logged in: ${userCredential.user?.email}');
+    // Validation belongs in the page
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your email and password.')),
+      );
+      return;
+    }
+
+    try {
+      await _authService.login(email, password);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Logged in successfully!')));
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HomePage()),
+      );
     } on FirebaseAuthException catch (e) {
-      debugPrint(e.message);
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.message ?? 'Login failed.')));
+    }
+  }
+
+  Future<void> sendResetEmail() async {
+    final email = emailController.text.trim();
+
+    // Empty field validation
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your email address.')),
+      );
+      return;
+    }
+
+    // Basic email validation
+    if (!email.contains('@') || !email.contains('.')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid email address.')),
+      );
+      return;
+    }
+
+    try {
+      await _authService.resetPassword(email);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Password reset link sent. Please check your email.'),
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+
+      String message = 'Unable to send password reset email.';
+
+      if (e.code == 'invalid-email') {
+        message = 'Please enter a valid email address.';
+      } else if (e.code == 'too-many-requests') {
+        message = 'Too many attempts. Please try again later.';
+      }
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
@@ -156,9 +222,7 @@ class _LoginPageState extends State<LoginPage> {
                       Align(
                         alignment: Alignment.centerRight,
                         child: GestureDetector(
-                          onTap: () {
-                            // Add forgot password navigation here
-                          },
+                          onTap: sendResetEmail,
                           child: Text(
                             'Forgot password?',
                             style: GoogleFonts.nunito(
@@ -177,18 +241,8 @@ class _LoginPageState extends State<LoginPage> {
                         width: double.infinity,
                         height: 56,
                         child: ElevatedButton(
-                          onPressed: () async {
-                            await loginUser(
-                              emailController.text,
-                              passwordController.text,
-                            );
-                            Navigator.push(
-                              // ignore: use_build_context_synchronously
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const HomePage(),
-                              ),
-                            );
+                          onPressed: () {
+                            loginUser();
                           },
 
                           style: ElevatedButton.styleFrom(
