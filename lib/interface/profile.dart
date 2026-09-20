@@ -5,6 +5,7 @@ import 'package:e_learning/interface/login.dart';
 import 'package:e_learning/interface/dashboard.dart';
 import 'package:e_learning/interface/reviewer.dart';
 import 'package:e_learning/services/auth_service.dart';
+import 'account.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -159,16 +160,20 @@ class _ProfilePageState extends State<ProfilePage> {
 
                       // ACCOUNT
                       SettingsButton(
-                        title: 'Account',
-                        icon: Icons.account_box_outlined,
-                        color: const Color(0xFF62D91E),
-                        onTap: () {
-                          // Navigate to Account
-                        },
-                      ),
+  title: 'Account',
+  icon: Icons.account_box_outlined,
+  color: const Color(0xFF62D91E),
+  onTap: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const AccountPage(),
+      ),
+    );
+  },
+),
 
-                      const SizedBox(height: 12),
-
+const SizedBox(height: 12),
                       // GAME HISTORY
                       SettingsButton(
                         title: 'Game History',
