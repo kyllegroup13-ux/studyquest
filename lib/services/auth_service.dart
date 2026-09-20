@@ -1,12 +1,13 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // LOGIN
   Future<User?> login(String email, String password) async {
-    UserCredential credential =
-        await _auth.signInWithEmailAndPassword(
+    UserCredential credential = await _auth.signInWithEmailAndPassword(
       email: email.trim(),
       password: password,
     );
@@ -15,27 +16,34 @@ class AuthService {
   }
 
   // SIGN UP
-  Future<User?> register(
-    String name,
-    String email,
-    String password,
-  ) async {
-    UserCredential credential =
-        await _auth.createUserWithEmailAndPassword(
+  Future<User?> register(String name, String email, String password) async {
+    UserCredential credential = await _auth.createUserWithEmailAndPassword(
       email: email.trim(),
       password: password,
     );
 
-    await credential.user?.updateDisplayName(name.trim());
+    User? user = credential.user;
 
-    return credential.user;
+    if (user != null) {
+      // Save name to Firebase Authentication
+      await user.updateDisplayName(name.trim());
+
+      // Save user information to Firestore
+      await _firestore.collection('users').doc(user.uid).set({
+        'uid': user.uid,
+        'name': name.trim(),
+        'email': email.trim(),
+        'role': 'student',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+
+    return user;
   }
 
   // FORGOT PASSWORD
   Future<void> resetPassword(String email) async {
-    await _auth.sendPasswordResetEmail(
-      email: email.trim(),
-    );
+    await _auth.sendPasswordResetEmail(email: email.trim());
   }
 
   // LOGOUT
