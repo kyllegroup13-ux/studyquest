@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'dart:io';
+
+import 'package:image_picker/image_picker.dart';
+
+import '../services/account_service.dart';
 
 class EditProfileModal extends StatefulWidget {
   final String currentProfileImage;
@@ -12,6 +17,10 @@ class EditProfileModal extends StatefulWidget {
 
 class _EditProfileModalState extends State<EditProfileModal> {
   late String selectedImage;
+  File? _uploadedFile;
+  bool _uploading = false;
+
+  final AccountService _accountService = AccountService();
 
   // Avatar images
   final List<String> avatarImages = [
@@ -92,14 +101,15 @@ class _EditProfileModalState extends State<EditProfileModal> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
 
-                    border: Border.all(
-                      color: const Color(0xFF999999),
-                      width: 3,
-                    ),
+                    
                   ),
 
                   child: ClipOval(
-                    child: Image.asset(selectedImage, fit: BoxFit.cover),
+                    child: _uploadedFile != null
+                        ? Image.file(_uploadedFile!, fit: BoxFit.cover)
+                        : (selectedImage.startsWith('http')
+                            ? Image.network(selectedImage, fit: BoxFit.cover)
+                            : Image.asset(selectedImage, fit: BoxFit.cover)),
                   ),
                 ),
               ),
@@ -149,7 +159,7 @@ class _EditProfileModalState extends State<EditProfileModal> {
               // =================================================
               GestureDetector(
                 onTap: () {
-                  // ImagePicker will go here
+                  _pickImage();
                 },
 
                 child: Container(
@@ -191,10 +201,40 @@ class _EditProfileModalState extends State<EditProfileModal> {
                   height: 55,
 
                   child: ElevatedButton(
-                    onPressed: () {
-                      // Return selected avatar
-                      Navigator.pop(context, selectedImage);
-                    },
+                    onPressed: _uploading
+                        ? null
+                        : () async {
+                            try {
+                              String resultUrl = selectedImage;
+
+                              if (_uploadedFile != null) {
+                                setState(() => _uploading = true);
+
+                                final uploadedUrl = await _accountService.updateProfileImage(_uploadedFile!);
+
+                                if (uploadedUrl.isNotEmpty) {
+                                  resultUrl = uploadedUrl;
+                                }
+
+                                setState(() => _uploading = false);
+                              }
+
+                              // If selectedImage is an asset, save its path as the profileImageUrl
+                              if (!resultUrl.startsWith('http')) {
+                                await _accountService.setProfileImageUrl(resultUrl);
+                              }
+
+                              Navigator.pop(context, resultUrl);
+                            } catch (e) {
+                              if (!mounted) return;
+
+                              setState(() => _uploading = false);
+
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Failed to save image: $e')),
+                              );
+                            }
+                          },
 
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF4FC3EF),
@@ -259,6 +299,7 @@ class _EditProfileModalState extends State<EditProfileModal> {
       onTap: () {
         setState(() {
           selectedImage = image;
+            _uploadedFile = null;
         });
       },
 
@@ -280,5 +321,18 @@ class _EditProfileModalState extends State<EditProfileModal> {
         ),
       ),
     );
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+
+    final XFile? picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+
+    if (picked == null) return;
+
+    setState(() {
+      _uploadedFile = File(picked.path);
+      selectedImage = picked.path; // temporary local path until upload
+    });
   }
 }

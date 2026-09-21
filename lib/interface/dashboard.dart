@@ -128,11 +128,37 @@ class _HomePageState extends State<HomePage> {
                         ),
 
                         // Profile Picture
-                        CircleAvatar(
-                          radius: 40,
-                          backgroundImage: AssetImage(
-                            'assets/images/profile.png',
-                          ),
+                        FutureBuilder<Map<String, dynamic>?>(
+                          future: FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(FirebaseAuth.instance.currentUser?.uid)
+                              .get()
+                              .then((doc) => doc.data()),
+                          builder: (context, snapshot) {
+                            final data = snapshot.data;
+                            final imageUrl = data != null && data.containsKey('profileImageUrl')
+                                ? (data['profileImageUrl'] ?? '') as String
+                                : '';
+
+                            if (imageUrl.isNotEmpty) {
+                              if (imageUrl.startsWith('http')) {
+                                return CircleAvatar(
+                                  radius: 40,
+                                  backgroundImage: NetworkImage(imageUrl),
+                                );
+                              }
+
+                              return CircleAvatar(
+                                radius: 40,
+                                backgroundImage: AssetImage(imageUrl),
+                              );
+                            }
+
+                            return const CircleAvatar(
+                              radius: 40,
+                              backgroundImage: AssetImage('assets/images/profile.png'),
+                            );
+                          },
                         ),
                       ],
                     ),

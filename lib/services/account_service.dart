@@ -89,4 +89,20 @@ class AccountService {
 
     return imageUrl;
   }
+
+  // ============================================================
+  // SET PROFILE IMAGE URL (used for asset selections or direct URLs)
+  // ============================================================
+
+  Future<void> setProfileImageUrl(String url) async {
+    final user = _auth.currentUser;
+
+    if (user == null) {
+      throw Exception('No user is currently logged in.');
+    }
+
+    await _firestore.collection('users').doc(user.uid).update({
+      'profileImageUrl': url,
+    });
+  }
 }

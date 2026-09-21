@@ -185,48 +185,31 @@ class _AccountPageState extends State<AccountPage> {
   // PROFILE IMAGE
   // ============================================================
 
-  Future<void> _changeProfileImage() async {
-    try {
-      final picker = ImagePicker();
-
-      final XFile? pickedImage = await picker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 80,
+  Future<void> _openEditProfileModal() async {
+  final result = await showDialog<String>(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) {
+      return EditProfileModal(
+        currentProfileImage: _profileImageUrl.isNotEmpty ? _profileImageUrl : 'assets/images/avatars/avatar_1.png',
       );
+    },
+  );
 
-      if (pickedImage == null) {
-        return;
-      }
-
-      setState(() {
-        _uploadingImage = true;
-      });
-
-      final imageFile = File(pickedImage.path);
-
-      final imageUrl = await _accountService.updateProfileImage(imageFile);
-
-      if (!mounted) return;
-
-      setState(() {
-        _profileImageUrl = imageUrl;
-        _uploadingImage = false;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile picture updated successfully!')),
-      );
-    } catch (e) {
-      if (!mounted) return;
-
-      setState(() {
-        _uploadingImage = false;
-      });
-
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Image update failed: $e')));
+  // If the modal returned a new image URL or asset path, refresh
+  if (result != null && mounted) {
+    // If result is a URL (starts with http), set it directly
+    if (result.startsWith('http')) {
+      setState(() => _profileImageUrl = result);
+    } else {
+      // For asset or local paths, store as-is
+      setState(() => _profileImageUrl = result);
     }
+
+    // Reload to ensure latest data from Firestore
+    await _loadUserData();
   }
+}
 
   // ============================================================
   // UI
@@ -561,26 +544,31 @@ class _AccountPageState extends State<AccountPage> {
 
   Widget _buildProfileImage() {
     if (_profileImageUrl.isNotEmpty) {
-      return Image.network(
-        _profileImageUrl,
-        width: double.infinity,
-        height: double.infinity,
-        fit: BoxFit.cover,
+      if (_profileImageUrl.startsWith('http')) {
+        return Image.network(
+          _profileImageUrl,
+          width: double.infinity,
+          height: double.infinity,
+          fit: BoxFit.cover,
 
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) {
-            return child;
-          }
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) {
+              return child;
+            }
 
-          return const Center(
-            child: CircularProgressIndicator(strokeWidth: 2, color: green),
-          );
-        },
+            return const Center(
+              child: CircularProgressIndicator(strokeWidth: 2, color: green),
+            );
+          },
 
-        errorBuilder: (context, error, stackTrace) {
-          return Image.asset('assets/images/profile.png', fit: BoxFit.contain);
-        },
-      );
+          errorBuilder: (context, error, stackTrace) {
+            return Image.asset('assets/images/profile.png', fit: BoxFit.contain);
+          },
+        );
+      }
+
+      // Asset path
+      return Image.asset(_profileImageUrl, fit: BoxFit.contain);
     }
 
     return Image.asset('assets/images/profile.png', fit: BoxFit.contain);
