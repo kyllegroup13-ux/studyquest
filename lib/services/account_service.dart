@@ -77,14 +77,12 @@ class AccountService {
       throw Exception('No user is currently logged in.');
     }
 
-    // Upload to Cloudinary
     final imageUrl = await CloudinaryService.uploadProfileImage(imageFile);
 
     if (imageUrl == null || imageUrl.isEmpty) {
-      throw Exception('Cloudinary did not return an image URL.');
+      throw Exception('Failed to upload profile image.');
     }
 
-    // Save URL to Firestore
     await _firestore.collection('users').doc(user.uid).update({
       'profileImageUrl': imageUrl,
     });

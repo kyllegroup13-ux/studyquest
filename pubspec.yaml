@@ -77,6 +77,14 @@ flutter:
    - assets/images/mind_rush_icon.png
    - assets/images/link_up_icon.png
    - assets/images/notebook_icon.png
+   - assets/images/avatars/avatar_1.png
+   - assets/images/avatars/avatar_2.png
+   - assets/images/avatars/avatar_3.png
+   - assets/images/avatars/avatar_4.png
+   - assets/images/avatars/avatar_5.png
+   - assets/images/avatars/avatar_6.png
+   - assets/images/avatars/avatar_7.png
+   - assets/images/avatars/avatar_8.png
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

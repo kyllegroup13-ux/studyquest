@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:e_learning/interface/startup_one.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'package:e_learning/auth_wrapper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,7 +18,8 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: const StartUp(),
+
+      home: const AuthWrapper(),
     );
   }
 }

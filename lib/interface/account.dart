@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+
+import 'edit_profile_modal.dart';
 import '../services/account_service.dart';
 
 // Change this import to the actual location of your CloudinaryService.
@@ -273,8 +275,6 @@ class _AccountPageState extends State<AccountPage> {
                         ),
                       ),
 
-                      const SizedBox(height: 5),
-
                       // ================================
                       // ACCOUNT TITLE
                       // ================================
@@ -298,32 +298,46 @@ class _AccountPageState extends State<AccountPage> {
                           clipBehavior: Clip.none,
 
                           children: [
-                            Container(
-                              width: 145,
-                              height: 145,
-                              padding: const EdgeInsets.all(15),
+                            CircleAvatar(
+                              radius: 60,
+                              backgroundColor: Colors.grey[200],
 
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
+                              child: ClipOval(
+                                child: SizedBox(
+                                  width: 120,
+                                  height: 120,
 
-                                border: Border.all(
-                                  color: Colors.black,
-                                  width: 2.5,
+                                  child: _buildProfileImage(),
                                 ),
                               ),
-
-                              child: ClipOval(child: _buildProfileImage()),
                             ),
 
                             // IMAGE EDIT BUTTON
                             Positioned(
-                              right: 5,
-                              bottom: 3,
+                              right: 3,
+                              bottom: 1,
 
                               child: GestureDetector(
-                                onTap: _uploadingImage
-                                    ? null
-                                    : _changeProfileImage,
+                                onTap: () async {
+                                  final selectedImage =
+                                      await showDialog<String>(
+                                        context: context,
+                                        barrierDismissible: false,
+                                        builder: (context) {
+                                          return EditProfileModal(
+                                            currentProfileImage: 'assets/images/avatars/avatar_1.png',
+                                          );
+                                        },
+                                      );
+
+                                  if (selectedImage != null) {
+                                    debugPrint(
+                                      'Selected avatar: $selectedImage',
+                                    );
+
+                                    // Save selectedImage to Firestore here
+                                  }
+                                },
 
                                 child: Container(
                                   width: 43,

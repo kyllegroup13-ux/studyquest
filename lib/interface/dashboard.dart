@@ -4,6 +4,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:e_learning/interface/reviewer.dart';
 import 'package:e_learning/interface/profile.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:e_learning/games/mind_rush_material_upload.dart';
+import 'package:e_learning/games/link_up_material_upload.dart';
+import 'package:e_learning/games/word_forge_material_upload.dart';
+import 'package:e_learning/games/letter_quest_material_upload.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -145,7 +149,11 @@ class _HomePageState extends State<HomePage> {
                       imagePath: 'assets/images/mind_rush_icon.png',
                       imageHeight: 50,
                       onTap: () {
-                        // Navigate to Mind Rush
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const MindRushPage()),
+                        );
                       },
                     ),
 
@@ -160,7 +168,11 @@ class _HomePageState extends State<HomePage> {
                       imagePath: 'assets/images/link_up_icon.png',
                       imageHeight: 50,
                       onTap: () {
-                        // Navigate to Link Up
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const LinkUpPage()),
+                        );
                       },
                     ),
 
@@ -174,7 +186,11 @@ class _HomePageState extends State<HomePage> {
                       imagePath: 'assets/images/word_forge_icon.png',
                       imageHeight: 50,
                       onTap: () {
-                        // Navigate to Word Forge
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const WordForgePage()),
+                        );
                       },
                     ),
 
@@ -189,7 +205,11 @@ class _HomePageState extends State<HomePage> {
                       imagePath: 'assets/images/letter_quest_icon.png',
                       imageHeight: 100,
                       onTap: () {
-                        // Navigate to Letter Quest
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const LetterQuestPage()),
+                        );
                       },
                     ),
 
