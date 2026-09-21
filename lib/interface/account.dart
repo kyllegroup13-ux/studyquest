@@ -1,12 +1,11 @@
 import 'dart:io';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import '../services/account_service.dart';
 
-import '../services/cloudinary_service.dart';
+// Change this import to the actual location of your CloudinaryService.
 
 class AccountPage extends StatefulWidget {
   const AccountPage({super.key});
@@ -16,12 +15,13 @@ class AccountPage extends StatefulWidget {
 }
 
 class _AccountPageState extends State<AccountPage> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore =
-      FirebaseFirestore.instance;
+  // ============================================================
+  // FIREBASE
+  // ============================================================
 
-  final TextEditingController _usernameController =
-      TextEditingController();
+  final AccountService _accountService = AccountService();
+
+  final TextEditingController _usernameController = TextEditingController();
 
   String _username = '';
   String _email = '';
@@ -34,6 +34,11 @@ class _AccountPageState extends State<AccountPage> {
   bool _uploadingImage = false;
 
   static const Color green = Color(0xFF65D523);
+  // static const Color grey = Color(0xFF999999);
+
+  // ============================================================
+  // INITIALIZATION
+  // ============================================================
 
   @override
   void initState() {
@@ -47,52 +52,40 @@ class _AccountPageState extends State<AccountPage> {
     super.dispose();
   }
 
+  // ============================================================
+  // LOAD USER DATA
+  // ============================================================
+
   Future<void> _loadUserData() async {
-    final user = _auth.currentUser;
-
-    if (user == null) {
-      if (mounted) {
-        setState(() {
-          _loading = false;
-        });
-      }
-      return;
-    }
-
     try {
-      final document = await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .get();
+      final data = await _accountService.getUserData();
 
-      final data = document.data() ?? {};
-
-      String joinedDate = 'Not available';
-
-      final timestamp = data['dateJoined'];
-
-      if (timestamp is Timestamp) {
-        final date = timestamp.toDate();
-
-        joinedDate =
-            '${_monthName(date.month)} '
-            '${date.day.toString().padLeft(2, '0')}, '
-            '${date.year}';
+      if (data == null) {
+        if (mounted) {
+          setState(() {
+            _loading = false;
+          });
+        }
+        return;
       }
+
+      final DateTime? date = data['dateJoined'];
 
       if (!mounted) return;
 
       setState(() {
-        _username =
-            (data['username'] ?? '').toString();
+        _username = data['username'];
+        _email = data['email'];
+        _profileImageUrl = data['profileImageUrl'];
 
-        _email =
-            (data['email'] ?? user.email ?? '').toString();
-
-        _profileImageUrl =
-            (data['profileImageUrl'] ?? '').toString();
-
-        _dateJoined = joinedDate;
+        if (date != null) {
+          _dateJoined =
+              '${_monthName(date.month)} '
+              '${date.day.toString().padLeft(2, '0')}, '
+              '${date.year}';
+        } else {
+          _dateJoined = 'Not available';
+        }
 
         _loading = false;
       });
@@ -102,7 +95,6 @@ class _AccountPageState extends State<AccountPage> {
       if (!mounted) return;
 
       setState(() {
-        _email = user.email ?? '';
         _loading = false;
       });
     }
@@ -127,9 +119,9 @@ class _AccountPageState extends State<AccountPage> {
     return months[month - 1];
   }
 
-  // --------------------------------------------------
+  // ============================================================
   // USERNAME EDITING
-  // --------------------------------------------------
+  // ============================================================
 
   void _startEditingUsername() {
     _usernameController.text = _username;
@@ -139,17 +131,8 @@ class _AccountPageState extends State<AccountPage> {
     });
   }
 
-  /*void _cancelEditingUsername() {
-    _usernameController.text = _username;
-
-    setState(() {
-      _editingUsername = false;
-    });
-  }
-*/
   Future<void> _saveUsername() async {
-    final newUsername =
-        _usernameController.text.trim();
+    final newUsername = _usernameController.text.trim();
 
     if (newUsername.isEmpty) {
       return;
@@ -159,12 +142,7 @@ class _AccountPageState extends State<AccountPage> {
       setState(() {
         _editingUsername = false;
       });
-      return;
-    }
 
-    final user = _auth.currentUser;
-
-    if (user == null) {
       return;
     }
 
@@ -175,12 +153,7 @@ class _AccountPageState extends State<AccountPage> {
     });
 
     try {
-      await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .update({
-        'username': newUsername,
-      });
+      await _accountService.updateUsername(newUsername);
 
       if (!mounted) return;
 
@@ -191,49 +164,30 @@ class _AccountPageState extends State<AccountPage> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Username updated successfully!',
-          ),
-        ),
+        const SnackBar(content: Text('Username updated successfully!')),
       );
     } catch (e) {
-      debugPrint(
-        'USERNAME UPDATE ERROR: $e',
-      );
-
       if (!mounted) return;
 
       setState(() {
         _savingUsername = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Failed to update username: $e',
-          ),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to update username: $e')));
     }
   }
 
-  // --------------------------------------------------
+  // ============================================================
   // PROFILE IMAGE
-  // --------------------------------------------------
+  // ============================================================
 
   Future<void> _changeProfileImage() async {
-    final user = _auth.currentUser;
-
-    if (user == null) {
-      return;
-    }
-
     try {
       final picker = ImagePicker();
 
-      final XFile? pickedImage =
-          await picker.pickImage(
+      final XFile? pickedImage = await picker.pickImage(
         source: ImageSource.gallery,
         imageQuality: 80,
       );
@@ -242,41 +196,13 @@ class _AccountPageState extends State<AccountPage> {
         return;
       }
 
-      if (!mounted) return;
-
       setState(() {
         _uploadingImage = true;
       });
 
-      final imageFile =
-          File(pickedImage.path);
+      final imageFile = File(pickedImage.path);
 
-      debugPrint(
-        'Selected image: ${imageFile.path}',
-      );
-
-      final imageUrl =
-          await CloudinaryService.uploadProfileImage(
-        imageFile,
-      );
-
-      debugPrint(
-        'Cloudinary URL: $imageUrl',
-      );
-
-      if (imageUrl == null ||
-          imageUrl.isEmpty) {
-        throw Exception(
-          'Cloudinary did not return an image URL.',
-        );
-      }
-
-      await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .update({
-        'profileImageUrl': imageUrl,
-      });
+      final imageUrl = await _accountService.updateProfileImage(imageFile);
 
       if (!mounted) return;
 
@@ -286,631 +212,513 @@ class _AccountPageState extends State<AccountPage> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Profile picture updated successfully!',
-          ),
-        ),
+        const SnackBar(content: Text('Profile picture updated successfully!')),
       );
     } catch (e) {
-      debugPrint(
-        'PROFILE IMAGE ERROR: $e',
-      );
-
       if (!mounted) return;
 
       setState(() {
         _uploadingImage = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Image update failed: $e',
-          ),
-        ),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Image update failed: $e')));
     }
   }
 
-  // --------------------------------------------------
+  // ============================================================
   // UI
-  // --------------------------------------------------
+  // ============================================================
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+
       body: SafeArea(
         child: _loading
-            ? const Center(
-                child: CircularProgressIndicator(),
-              )
-            : LayoutBuilder(
-                builder: (context, constraints) {
-                  return SingleChildScrollView(
-                    physics:
-                        const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.only(
-                      left: 19,
-                      right: 19,
-                      top: 10,
-                      bottom: 25,
-                    ),
-                    child: Column(
-                      children: [
+            ? const Center(child: CircularProgressIndicator())
+            : ScrollConfiguration(
+                behavior: ScrollConfiguration.of(context)
+                    .copyWith(overscroll: false),
 
-                        // --------------------------------
-                        // HEADER
-                        // --------------------------------
+                child: SingleChildScrollView(
+                  physics: const ClampingScrollPhysics(),
 
-                        SizedBox(
-                          height: 52,
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 27,
+                    vertical: 20,
+                  ),
 
-                              Align(
-                                alignment:
-                                    Alignment.centerLeft,
-                                child: IconButton(
-                                  onPressed: () {
-                                    Navigator.pop(
-                                      context,
-                                    );
-                                  },
-                                  padding: EdgeInsets.zero,
-                                  constraints:
-                                      const BoxConstraints(
-                                    minWidth: 35,
-                                    minHeight: 35,
-                                  ),
-                                  icon: const Icon(
-                                    Icons
-                                        .arrow_back_ios_new,
-                                    size: 21,
-                                    color: Colors.black,
-                                  ),
-                                ),
-                              ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
 
-                              Text(
-                                'Account',
-                                style:
-                                    GoogleFonts.nunito(
-                                  fontSize: 13,
-                                  fontWeight:
-                                      FontWeight.w800,
-                                  color: Colors.black,
-                                ),
-                              ),
-                            ],
+                    children: [
+                      // ================================
+                      // BACK BUTTON
+                      // ================================
+
+                      IconButton(
+                        padding: EdgeInsets.zero,
+                        alignment: Alignment.centerLeft,
+
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+
+                        icon: const Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          size: 27,
+                          color: Colors.black,
+                        ),
+                      ),
+
+                      const SizedBox(height: 5),
+
+                      // ================================
+                      // ACCOUNT TITLE
+                      // ================================
+                      Center(
+                        child: Text(
+                          'Account',
+                          style: GoogleFonts.nunito(
+                            fontSize: 21,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
+                      ),
 
-                        const SizedBox(height: 14),
+                      const SizedBox(height: 15),
 
-                        // --------------------------------
-                        // PROFILE IMAGE
-                        // --------------------------------
-
-                        Stack(
+                      // ================================
+                      // PROFILE IMAGE
+                      // ================================
+                      Center(
+                        child: Stack(
                           clipBehavior: Clip.none,
-                          children: [
 
+                          children: [
                             Container(
-                              width: 94,
-                              height: 94,
-                              decoration:
-                                  BoxDecoration(
+                              width: 145,
+                              height: 145,
+                              padding: const EdgeInsets.all(15),
+
+                              decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: const Color(
-                                  0xFFF4F4F4,
-                                ),
-                                border:
-                                    Border.all(
+
+                                border: Border.all(
                                   color: Colors.black,
-                                  width: 2,
+                                  width: 2.5,
                                 ),
                               ),
-                              child: ClipOval(
-                                child:
-                                    _profileImageUrl
-                                            .isNotEmpty
-                                        ? Image.network(
-                                            _profileImageUrl,
-                                            width: 94,
-                                            height: 94,
-                                            fit: BoxFit.cover,
-                                            errorBuilder:
-                                                (
-                                              context,
-                                              error,
-                                              stackTrace,
-                                            ) {
-                                              return const Icon(
-                                                Icons.person,
-                                                size: 55,
-                                                color:
-                                                    green,
-                                              );
-                                            },
-                                          )
-                                        : const Icon(
-                                            Icons.person,
-                                            size: 55,
-                                            color:
-                                                green,
-                                          ),
-                              ),
+
+                              child: ClipOval(child: _buildProfileImage()),
                             ),
 
-                            // Pencil button
+                            // IMAGE EDIT BUTTON
                             Positioned(
-                              right: -5,
-                              bottom: -3,
-                              child: Container(
-                                width: 27,
-                                height: 27,
-                                decoration:
-                                    BoxDecoration(
-                                  color: Colors.white,
-                                  shape:
-                                      BoxShape.circle,
-                                  border:
-                                      Border.all(
-                                    color: Colors.black,
-                                    width: 1,
-                                  ),
-                                ),
-                                child: _uploadingImage
-                                    ? const Padding(
-                                        padding:
-                                            EdgeInsets
-                                                .all(
-                                          6,
-                                        ),
-                                        child:
-                                            CircularProgressIndicator(
-                                          strokeWidth: 1.5,
-                                        ),
-                                      )
-                                    : IconButton(
-                                        onPressed:
-                                            _changeProfileImage,
-                                        padding:
-                                            EdgeInsets.zero,
-                                        constraints:
-                                            const BoxConstraints(),
-                                        icon: const Icon(
-                                          Icons.edit,
-                                          size: 14,
-                                          color:
-                                              Colors.black,
-                                        ),
+                              right: 5,
+                              bottom: 3,
+
+                              child: GestureDetector(
+                                onTap: _uploadingImage
+                                    ? null
+                                    : _changeProfileImage,
+
+                                child: Container(
+                                  width: 43,
+                                  height: 43,
+
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+
+                                    border: Border.all(
+                                      color: const Color(0xFFD0D0D0),
+                                      width: 2,
+                                    ),
+
+                                    boxShadow: const [
+                                      BoxShadow(
+                                        color: Color(0x25000000),
+                                        blurRadius: 4,
+                                        offset: Offset(0, 2),
                                       ),
+                                    ],
+                                  ),
+
+                                  child: _uploadingImage
+                                      ? const Padding(
+                                          padding: EdgeInsets.all(10),
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: green,
+                                          ),
+                                        )
+                                      : const Icon(
+                                          Icons.edit_outlined,
+                                          size: 22,
+                                        ),
+                                ),
                               ),
                             ),
                           ],
                         ),
+                      ),
 
-                        const SizedBox(height: 8),
+                      const SizedBox(height: 12),
 
-                        // --------------------------------
-                        // PROFILE TITLE
-                        // --------------------------------
-
-                        Align(
-                          alignment:
-                              Alignment.centerLeft,
-                          child: Padding(
-                            padding:
-                                const EdgeInsets.only(
-                              left: 0,
-                            ),
-                            child: Text(
-                              'Profile',
-                              style:
-                                  GoogleFonts.nunito(
-                                fontSize: 16,
-                                fontWeight:
-                                    FontWeight.w800,
-                                color: Colors.black,
-                              ),
-                            ),
+                      // ================================
+                      // PROFILE
+                      // ================================
+                      Center(
+                        child: Text(
+                          'Profile',
+                          style: GoogleFonts.nunito(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
+                      ),
 
-                        const SizedBox(height: 10),
+                      const SizedBox(height: 15),
 
-                        // --------------------------------
-                        // PROFILE CARD
-                        // --------------------------------
+                      // ================================
+                      // EDITABLE INFORMATION
+                      // ================================
+                      Container(
+                        width: double.infinity,
 
-                        Container(
-                          width: double.infinity,
-                          padding:
-                              const EdgeInsets.fromLTRB(
-                            15,
-                            14,
-                            15,
-                            14,
-                          ),
-                          decoration:
-                              BoxDecoration(
-                            color: Colors.white,
-                            borderRadius:
-                                BorderRadius.circular(
-                              17,
-                            ),
-                            border: Border.all(
-                              color: Colors.black,
-                              width: 2,
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
-                            children: [
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 23,
+                          vertical: 28,
+                        ),
 
-                              // USERNAME LABEL
-                              Text(
-                                'Username',
-                                style:
-                                    GoogleFonts.nunito(
-                                  fontSize: 12,
-                                  fontWeight:
-                                      FontWeight.w800,
-                                  color: Colors.black,
-                                ),
-                              ),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.black, width: 2.5),
 
-                              const SizedBox(height: 5),
+                          borderRadius: BorderRadius.circular(25),
+                        ),
 
-                              // USERNAME FIELD
-                              SizedBox(
-                                height: 28,
-                                child: Row(
-                                  children: [
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
 
-                                    Expanded(
-                                      child:
-                                          _editingUsername
-                                              ? Container(
-                                                  decoration:
-                                                      BoxDecoration(
-                                                    color:
-                                                        green,
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                      6,
-                                                    ),
-                                                  ),
-                                                  child:
-                                                      TextField(
-                                                    controller:
-                                                        _usernameController,
-                                                    autofocus:
-                                                        true,
-                                                    maxLength:
-                                                        20,
-                                                    textAlign:
-                                                        TextAlign.center,
-                                                    style:
-                                                        GoogleFonts.nunito(
-                                                      fontSize:
-                                                          10,
-                                                      fontWeight:
-                                                          FontWeight.w800,
-                                                      color:
-                                                          Colors.black,
-                                                    ),
-                                                    decoration:
-                                                        const InputDecoration(
-                                                      counterText:
-                                                          '',
-                                                      border:
-                                                          InputBorder.none,
-                                                      isDense:
-                                                          true,
-                                                      contentPadding:
-                                                          EdgeInsets.symmetric(
-                                                        vertical:
-                                                            7,
-                                                        horizontal:
-                                                            5,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                )
-                                              : Container(
-                                                  alignment:
-                                                      Alignment.center,
-                                                  decoration:
-                                                      BoxDecoration(
-                                                    color:
-                                                        green,
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                      6,
-                                                    ),
-                                                  ),
-                                                  child:
-                                                      Text(
-                                                    _username.isEmpty
-                                                        ? 'No username'
-                                                        : _username,
-                                                    maxLines:
-                                                        1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    style:
-                                                        GoogleFonts.nunito(
-                                                      fontSize:
-                                                          10,
-                                                      fontWeight:
-                                                          FontWeight.w800,
-                                                      color:
-                                                          Colors.black,
-                                                    ),
-                                                  ),
-                                                ),
-                                    ),
+                          children: [
+                            // ==========================
+                            // USERNAME
+                            // ==========================
 
-                                    const SizedBox(
-                                      width: 6,
-                                    ),
-
-                                    Container(
-                                      width: 28,
-                                      height: 28,
-                                      decoration:
-                                          BoxDecoration(
-                                        color:
-                                            Colors.white,
-                                        borderRadius:
-                                            BorderRadius
-                                                .circular(
-                                          5,
-                                        ),
-                                        border:
-                                            Border.all(
-                                          color:
-                                              Colors.black,
-                                          width: 1,
-                                        ),
-                                      ),
-                                      child:
-                                          _editingUsername
-                                              ? _savingUsername
-                                                  ? const Padding(
-                                                      padding:
-                                                          EdgeInsets.all(
-                                                        7,
-                                                      ),
-                                                      child:
-                                                          CircularProgressIndicator(
-                                                        strokeWidth:
-                                                            1.5,
-                                                      ),
-                                                    )
-                                                  : IconButton(
-                                                      onPressed:
-                                                          _saveUsername,
-                                                      padding:
-                                                          EdgeInsets.zero,
-                                                      icon:
-                                                          const Icon(
-                                                        Icons.check,
-                                                        size:
-                                                            16,
-                                                      ),
-                                                    )
-                                              : IconButton(
-                                                  onPressed:
-                                                      _startEditingUsername,
-                                                  padding:
-                                                      EdgeInsets.zero,
-                                                  icon:
-                                                      const Icon(
-                                                    Icons.edit,
-                                                    size:
-                                                        15,
-                                                  ),
-                                                ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                              const SizedBox(height: 7),
-
-                              // EMAIL LABEL
-                              Text(
-                                'Email',
-                                style:
-                                    GoogleFonts.nunito(
-                                  fontSize: 12,
-                                  fontWeight:
-                                      FontWeight.w800,
-                                  color: Colors.black,
-                                ),
-                              ),
-
-                              const SizedBox(height: 4),
-
-                              // EMAIL FIELD
-                              Container(
-                                width: double.infinity,
-                                height: 25,
-                                alignment:
-                                    Alignment.center,
-                                decoration:
-                                    BoxDecoration(
-                                  color: green,
-                                  borderRadius:
-                                      BorderRadius
-                                          .circular(
-                                    6,
-                                  ),
-                                ),
-                                child: Padding(
-                                  padding:
-                                      const EdgeInsets
-                                          .symmetric(
-                                    horizontal: 8,
-                                  ),
+                            Row(
+                              children: [
+                                Expanded(
                                   child: Text(
-                                    _email,
-                                    maxLines: 1,
-                                    overflow:
-                                        TextOverflow
-                                            .ellipsis,
-                                    textAlign:
-                                        TextAlign.center,
-                                    style:
-                                        GoogleFonts.nunito(
-                                      fontSize: 9,
-                                      fontWeight:
-                                          FontWeight.w800,
-                                      color:
-                                          Colors.black,
+                                    'Username',
+                                    style: GoogleFonts.nunito(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w800,
                                     ),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ),
 
-                        const SizedBox(height: 13),
-
-                        // --------------------------------
-                        // DIVIDER
-                        // --------------------------------
-
-                        const Divider(
-                          color: Colors.black,
-                          thickness: 1,
-                          height: 1,
-                        ),
-
-                        const SizedBox(height: 8),
-
-                        // --------------------------------
-                        // ACCOUNT INFORMATION TITLE
-                        // --------------------------------
-
-                        Align(
-                          alignment:
-                              Alignment.centerLeft,
-                          child: Text(
-                            'Account Information',
-                            style:
-                                GoogleFonts.nunito(
-                              fontSize: 13,
-                              fontWeight:
-                                  FontWeight.w800,
-                              color: Colors.black,
+                                _buildUsernameField(),
+                              ],
                             ),
-                          ),
+
+                            const SizedBox(height: 15),
+
+                            // ==========================
+                            // EMAIL
+                            // ==========================
+                            Text(
+                              'Email',
+                              style: GoogleFonts.nunito(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+
+                            const SizedBox(height: 4),
+
+                            Container(
+                              width: double.infinity,
+                              height: 42,
+
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                              ),
+
+                              alignment: Alignment.center,
+
+                              decoration: BoxDecoration(
+                                color: green,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+
+                              child: Text(
+                                _email.isEmpty ? 'No email' : _email,
+
+                                maxLines: 1,
+
+                                overflow: TextOverflow.ellipsis,
+
+                                style: GoogleFonts.nunito(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // ================================
+                      // ACCOUNT INFORMATION
+                      // ================================
+                      const Divider(color: Color(0xFF777777), thickness: 1),
+
+                      const SizedBox(height: 5),
+
+                      Text(
+                        'Account Information',
+                        style: GoogleFonts.nunito(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      Container(
+                        width: double.infinity,
+
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 25,
                         ),
 
-                        const SizedBox(height: 8),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.black, width: 2.5),
 
-                        // --------------------------------
-                        // ACCOUNT INFORMATION CARD
-                        // --------------------------------
-
-                        Container(
-                          width: double.infinity,
-                          padding:
-                              const EdgeInsets.fromLTRB(
-                            12,
-                            13,
-                            12,
-                            13,
-                          ),
-                          decoration:
-                              BoxDecoration(
-                            color: Colors.white,
-                            borderRadius:
-                                BorderRadius.circular(
-                              13,
-                            ),
-                            border: Border.all(
-                              color: Colors.black,
-                              width: 2,
-                            ),
-                          ),
-                          child: Column(
-                            children: [
-
-                              _infoRow(
-                                'Username',
-                                _username.isEmpty
-                                    ? 'No username'
-                                    : _username,
-                              ),
-
-                              const SizedBox(height: 10),
-
-                              _infoRow(
-                                'Email',
-                                _email,
-                              ),
-
-                              const SizedBox(height: 10),
-
-                              _infoRow(
-                                'Date Joined',
-                                _dateJoined,
-                              ),
-                            ],
-                          ),
+                          borderRadius: BorderRadius.circular(20),
                         ),
-                      ],
-                    ),
-                  );
-                },
+
+                        child: Column(
+                          children: [
+                            AccountInfoRow(
+                              label: 'Username',
+                              value: _username.isEmpty
+                                  ? 'Not available'
+                                  : _username,
+                            ),
+
+                            const SizedBox(height: 20),
+
+                            AccountInfoRow(
+                              label: 'Email',
+                              value: _email.isEmpty ? 'Not available' : _email,
+                            ),
+
+                            const SizedBox(height: 20),
+
+                            AccountInfoRow(
+                              label: 'Date Joined',
+                              value: _dateJoined.isEmpty
+                                  ? 'Not available'
+                                  : _dateJoined,
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 30),
+                    ],
+                  ),
+                ),
               ),
       ),
     );
   }
 
-  Widget _infoRow(
-    String label,
-    String value,
-  ) {
-    return Row(
-      crossAxisAlignment:
-          CrossAxisAlignment.center,
-      children: [
+  // ============================================================
+  // PROFILE IMAGE WIDGET
+  // ============================================================
 
+  Widget _buildProfileImage() {
+    if (_profileImageUrl.isNotEmpty) {
+      return Image.network(
+        _profileImageUrl,
+        width: double.infinity,
+        height: double.infinity,
+        fit: BoxFit.cover,
+
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) {
+            return child;
+          }
+
+          return const Center(
+            child: CircularProgressIndicator(strokeWidth: 2, color: green),
+          );
+        },
+
+        errorBuilder: (context, error, stackTrace) {
+          return Image.asset('assets/images/profile.png', fit: BoxFit.contain);
+        },
+      );
+    }
+
+    return Image.asset('assets/images/profile.png', fit: BoxFit.contain);
+  }
+
+  // ============================================================
+  // USERNAME FIELD
+  // ============================================================
+
+  Widget _buildUsernameField() {
+    return Container(
+      height: 42,
+      width: 155,
+
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+
+        border: Border.all(color: const Color(0xFFD0D0D0)),
+      ),
+
+      clipBehavior: Clip.antiAlias,
+
+      child: Row(
+        children: [
+          // USERNAME / TEXT FIELD
+
+          Expanded(
+            child: Container(
+              height: double.infinity,
+              color: green,
+              alignment: Alignment.center,
+
+              child: _editingUsername
+                  ? TextField(
+                      controller: _usernameController,
+
+                      autofocus: true,
+
+                      textAlign: TextAlign.center,
+
+                      textInputAction: TextInputAction.done,
+
+                      onSubmitted: (_) {
+                        _saveUsername();
+                      },
+
+                      style: GoogleFonts.nunito(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 11,
+                        ),
+                      ),
+                    )
+                  : Text(
+                      _username.isEmpty ? 'Username' : _username,
+
+                      maxLines: 1,
+
+                      overflow: TextOverflow.ellipsis,
+
+                      style: GoogleFonts.nunito(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+            ),
+          ),
+
+          // EDIT / SAVE BUTTON
+          InkWell(
+            onTap: _savingUsername
+                ? null
+                : _editingUsername
+                ? _saveUsername
+                : _startEditingUsername,
+
+            child: SizedBox(
+              width: 42,
+              height: 42,
+
+              child: _savingUsername
+                  ? const Padding(
+                      padding: EdgeInsets.all(11),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: green,
+                      ),
+                    )
+                  : Icon(
+                      _editingUsername
+                          ? Icons.check_rounded
+                          : Icons.edit_outlined,
+
+                      size: 21,
+
+                      color: Colors.black,
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ================================================================
+// ACCOUNT INFORMATION ROW
+// ================================================================
+
+class AccountInfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const AccountInfoRow({super.key, required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
         SizedBox(
-          width: 82,
+          width: 130,
+
           child: Text(
             label,
+
             style: GoogleFonts.nunito(
-              fontSize: 11,
+              fontSize: 16,
               fontWeight: FontWeight.w800,
               color: Colors.black,
             ),
           ),
         ),
 
-        const SizedBox(width: 8),
-
         Expanded(
           child: Text(
             value,
+
             maxLines: 1,
+
             overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.left,
+
             style: GoogleFonts.nunito(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey.shade600,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF999999),
             ),
           ),
         ),

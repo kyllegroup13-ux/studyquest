@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:e_learning/interface/reviewer.dart';
 import 'package:e_learning/interface/profile.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -11,14 +12,45 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-String getUserName() {
+Future<String> getUserName() async {
   final User? user = FirebaseAuth.instance.currentUser;
 
-  return user?.displayName ?? 'Student';
+  if (user == null) {
+    return 'Guest';
+  }
+
+  final doc = await FirebaseFirestore.instance
+      .collection('users')
+      .doc(user.uid)
+      .get();
+
+  final data = doc.data();
+  return data != null && data.containsKey('username')
+      ? data['username'] as String
+      : 'Guest';
 }
 
 class _HomePageState extends State<HomePage> {
   int selectedIndex = 0;
+  String userName = 'Guest';
+  bool isLoadingName = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserName();
+  }
+
+  Future<void> _loadUserName() async {
+    final name = await getUserName();
+
+    if (!mounted) return;
+
+    setState(() {
+      userName = name;
+      isLoadingName = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -68,7 +100,7 @@ class _HomePageState extends State<HomePage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Hi, ${getUserName()}!',
+                                isLoadingName ? 'Hi!' : 'Hi, $userName!',
                                 style: GoogleFonts.nunito(
                                   fontSize: 30,
                                   fontWeight: FontWeight.w800,
@@ -204,16 +236,19 @@ class _HomePageState extends State<HomePage> {
             label: 'Reviewers',
             isActive: false,
             onTap: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const ReviewersPage()));
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ReviewersPage()),
+              );
             },
           ),
 
           _buildNavItem(
-            icon: Icons.workspace_premium_outlined,
-            label: 'Awards',
+            icon: Icons.class_outlined,
+            label: 'Classes',
             isActive: false,
             onTap: () {
-              // Navigate to Awards
+              // Navigate to Classes
             },
           ),
 
@@ -222,7 +257,10 @@ class _HomePageState extends State<HomePage> {
             label: 'Profile',
             isActive: false,
             onTap: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfilePage()));
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ProfilePage()),
+              );
             },
           ),
         ],

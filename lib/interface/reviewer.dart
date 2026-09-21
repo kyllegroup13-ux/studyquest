@@ -222,11 +222,11 @@ class _ReviewersPageState extends State<ReviewersPage> {
           ),
 
           _buildNavItem(
-            icon: Icons.workspace_premium_outlined,
-            label: 'Awards',
+            icon: Icons.class_outlined,
+            label: 'Classes',
             isActive: false,
             onTap: () {
-              // Navigate to Awards
+              // Navigate to Classes
             },
           ),
 

@@ -16,7 +16,7 @@ class AuthService {
   }
 
   // SIGN UP
-  Future<User?> register(String name, String email, String password) async {
+  Future<User?> register(String username, String email, String password) async {
     UserCredential credential = await _auth.createUserWithEmailAndPassword(
       email: email.trim(),
       password: password,
@@ -25,13 +25,13 @@ class AuthService {
     User? user = credential.user;
 
     if (user != null) {
-      // Save name to Firebase Authentication
-      await user.updateDisplayName(name.trim());
+      // Save username to Firebase Authentication
+      await user.updateDisplayName(username.trim());
 
       // Save user information to Firestore
       await _firestore.collection('users').doc(user.uid).set({
         'uid': user.uid,
-        'name': name.trim(),
+        'username': username.trim(),
         'email': email.trim(),
         'role': 'student',
         'createdAt': FieldValue.serverTimestamp(),
@@ -54,7 +54,7 @@ class AuthService {
   // CURRENT USER
   User? get currentUser => _auth.currentUser;
 
-  // USER NAME
+  // USERNAME
   String get userName {
     return _auth.currentUser?.displayName ?? 'Student';
   }

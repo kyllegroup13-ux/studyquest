@@ -5,7 +5,10 @@ import 'package:e_learning/interface/login.dart';
 import 'package:e_learning/interface/dashboard.dart';
 import 'package:e_learning/interface/reviewer.dart';
 import 'package:e_learning/services/auth_service.dart';
+
 import 'account.dart';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -17,10 +20,22 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   final AuthService _authService = AuthService();
 
-  String getUserName() {
+  Future<String> getUserName() async {
     final User? user = FirebaseAuth.instance.currentUser;
 
-    return user?.displayName ?? 'Student';
+    if (user == null) {
+      return 'Guest';
+    }
+
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .get();
+
+    final data = doc.data();
+    return data != null && data.containsKey('username')
+        ? data['username'] as String
+        : 'Guest';
   }
 
   String getUserEmail() {
@@ -81,31 +96,22 @@ class _ProfilePageState extends State<ProfilePage> {
                       const SizedBox(height: 15),
 
                       // PROFILE IMAGE
-                      Container(
-                        width: 105,
-                        height: 105,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: const Color(0xFF999999),
-                            width: 2,
-                          ),
-                        ),
-                        child: Image.asset(
-                          'assets/images/profile.png',
-                          fit: BoxFit.contain,
-                        ),
+                      CircleAvatar(
+                        radius: 50,
+                        backgroundImage: const AssetImage('assets/images/profile.png'),
                       ),
 
                       const SizedBox(height: 8),
 
                       // USERNAME
-                      Text(
-                        getUserName(),
-                        style: GoogleFonts.nunito(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
+                      FutureBuilder<String>(
+                        future: getUserName(),
+                        builder: (context, snapshot) => Text(
+                          snapshot.data ?? 'Guest',
+                          style: GoogleFonts.nunito(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ),
 
@@ -113,7 +119,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       Text(
                         getUserEmail(),
                         style: GoogleFonts.nunito(
-                          fontSize: 11,
+                          fontSize: 13,
                           color: const Color(0xFF999999),
                           fontWeight: FontWeight.w500,
                         ),
@@ -156,24 +162,24 @@ class _ProfilePageState extends State<ProfilePage> {
                         ],
                       ),
 
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 20),
 
                       // ACCOUNT
                       SettingsButton(
-  title: 'Account',
-  icon: Icons.account_box_outlined,
-  color: const Color(0xFF62D91E),
-  onTap: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const AccountPage(),
-      ),
-    );
-  },
-),
+                        title: 'Account',
+                        icon: Icons.account_box_outlined,
+                        color: const Color(0xFF62D91E),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const AccountPage(),
+                            ),
+                          );
+                        },
+                      ),
 
-const SizedBox(height: 12),
+                      const SizedBox(height: 12),
                       // GAME HISTORY
                       SettingsButton(
                         title: 'Game History',
@@ -265,7 +271,7 @@ const SizedBox(height: 12),
           _divider(),
 
           const Expanded(
-            child: StatisticItem(value: '5', label: 'Awards\nUnlocked'),
+            child: StatisticItem(value: '5', label: 'Classes\nJoined'),
           ),
         ],
       ),
@@ -315,11 +321,11 @@ const SizedBox(height: 12),
           ),
 
           _buildNavItem(
-            icon: Icons.workspace_premium_outlined,
-            label: 'Awards',
+            icon: Icons.class_outlined,
+            label: 'Classes',
             isActive: false,
             onTap: () {
-              // Navigate Awards
+              // Navigate to Classes
             },
           ),
 
