@@ -5,6 +5,7 @@ import 'package:e_learning/interface/login.dart';
 import 'package:e_learning/interface/dashboard.dart';
 import 'package:e_learning/interface/reviewer.dart';
 import 'package:e_learning/services/auth_service.dart';
+import '../widgets/current_user_profile_image.dart';
 
 import 'account.dart';
 
@@ -96,39 +97,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       const SizedBox(height: 15),
 
                       // PROFILE IMAGE
-                      CircleAvatar(
-                        radius: 50,
-                        child: FutureBuilder<Map<String, dynamic>?>(
-                          future: FirebaseFirestore.instance
-                              .collection('users')
-                              .doc(FirebaseAuth.instance.currentUser?.uid)
-                              .get()
-                              .then((doc) => doc.data()),
-                          builder: (context, snapshot) {
-                            final data = snapshot.data;
-                            final imageUrl = data != null && data.containsKey('profileImageUrl')
-                                ? (data['profileImageUrl'] ?? '') as String
-                                : '';
-
-                            if (imageUrl.isNotEmpty) {
-                              if (imageUrl.startsWith('http')) {
-                                return ClipOval(
-                                  child: Image.network(imageUrl, width: 100, height: 100, fit: BoxFit.cover),
-                                );
-                              }
-
-                              // Asset
-                              return ClipOval(
-                                child: Image.asset(imageUrl, width: 100, height: 100, fit: BoxFit.cover),
-                              );
-                            }
-
-                            return ClipOval(
-                              child: Image.asset('assets/images/profile.png', width: 100, height: 100, fit: BoxFit.cover),
-                            );
-                          },
-                        ),
-                      ),
+                      const CurrentUserProfileImage(radius: 50),
 
                       const SizedBox(height: 8),
 

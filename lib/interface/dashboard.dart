@@ -9,6 +9,8 @@ import 'package:e_learning/games/link_up_material_upload.dart';
 import 'package:e_learning/games/word_forge_material_upload.dart';
 import 'package:e_learning/games/letter_quest_material_upload.dart';
 
+import '../widgets/current_user_profile_image.dart';
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -128,38 +130,7 @@ class _HomePageState extends State<HomePage> {
                         ),
 
                         // Profile Picture
-                        FutureBuilder<Map<String, dynamic>?>(
-                          future: FirebaseFirestore.instance
-                              .collection('users')
-                              .doc(FirebaseAuth.instance.currentUser?.uid)
-                              .get()
-                              .then((doc) => doc.data()),
-                          builder: (context, snapshot) {
-                            final data = snapshot.data;
-                            final imageUrl = data != null && data.containsKey('profileImageUrl')
-                                ? (data['profileImageUrl'] ?? '') as String
-                                : '';
-
-                            if (imageUrl.isNotEmpty) {
-                              if (imageUrl.startsWith('http')) {
-                                return CircleAvatar(
-                                  radius: 40,
-                                  backgroundImage: NetworkImage(imageUrl),
-                                );
-                              }
-
-                              return CircleAvatar(
-                                radius: 40,
-                                backgroundImage: AssetImage(imageUrl),
-                              );
-                            }
-
-                            return const CircleAvatar(
-                              radius: 40,
-                              backgroundImage: AssetImage('assets/images/profile.png'),
-                            );
-                          },
-                        ),
+                        const CurrentUserProfileImage(radius: 40),
                       ],
                     ),
 
@@ -178,7 +149,8 @@ class _HomePageState extends State<HomePage> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (context) => const MindRushPage()),
+                            builder: (context) => const MindRushPage(),
+                          ),
                         );
                       },
                     ),
@@ -197,7 +169,8 @@ class _HomePageState extends State<HomePage> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (context) => const LinkUpPage()),
+                            builder: (context) => const LinkUpPage(),
+                          ),
                         );
                       },
                     ),
@@ -215,7 +188,8 @@ class _HomePageState extends State<HomePage> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (context) => const WordForgePage()),
+                            builder: (context) => const WordForgePage(),
+                          ),
                         );
                       },
                     ),
@@ -234,7 +208,8 @@ class _HomePageState extends State<HomePage> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (context) => const LetterQuestPage()),
+                            builder: (context) => const LetterQuestPage(),
+                          ),
                         );
                       },
                     ),

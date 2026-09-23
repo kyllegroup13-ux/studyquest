@@ -1,11 +1,13 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:image_picker/image_picker.dart';
 
-import 'edit_profile_modal.dart';
+
+
+
+import 'package:e_learning/interface/edit_profile_modal.dart';
+
 import '../services/account_service.dart';
+import '../widgets/user_profile_image.dart';
 
 // Change this import to the actual location of your CloudinaryService.
 
@@ -33,7 +35,7 @@ class _AccountPageState extends State<AccountPage> {
   bool _loading = true;
   bool _editingUsername = false;
   bool _savingUsername = false;
-  bool _uploadingImage = false;
+  final bool _uploadingImage = false;
 
   static const Color green = Color(0xFF65D523);
   // static const Color grey = Color(0xFF999999);
@@ -185,32 +187,6 @@ class _AccountPageState extends State<AccountPage> {
   // PROFILE IMAGE
   // ============================================================
 
-  Future<void> _openEditProfileModal() async {
-  final result = await showDialog<String>(
-    context: context,
-    barrierDismissible: false,
-    builder: (context) {
-      return EditProfileModal(
-        currentProfileImage: _profileImageUrl.isNotEmpty ? _profileImageUrl : 'assets/images/avatars/avatar_1.png',
-      );
-    },
-  );
-
-  // If the modal returned a new image URL or asset path, refresh
-  if (result != null && mounted) {
-    // If result is a URL (starts with http), set it directly
-    if (result.startsWith('http')) {
-      setState(() => _profileImageUrl = result);
-    } else {
-      // For asset or local paths, store as-is
-      setState(() => _profileImageUrl = result);
-    }
-
-    // Reload to ensure latest data from Firestore
-    await _loadUserData();
-  }
-}
-
   // ============================================================
   // UI
   // ============================================================
@@ -281,24 +257,15 @@ class _AccountPageState extends State<AccountPage> {
                           clipBehavior: Clip.none,
 
                           children: [
-                            CircleAvatar(
-                              radius: 60,
-                              backgroundColor: Colors.grey[200],
-
-                              child: ClipOval(
-                                child: SizedBox(
-                                  width: 120,
-                                  height: 120,
-
-                                  child: _buildProfileImage(),
-                                ),
-                              ),
+                            UserProfileImage(
+                              imageUrl: _profileImageUrl,
+                              radius: 50,
                             ),
 
                             // IMAGE EDIT BUTTON
                             Positioned(
-                              right: 3,
-                              bottom: 1,
+                              right: -9,
+                              bottom: -12,
 
                               child: GestureDetector(
                                 onTap: () async {
@@ -308,17 +275,18 @@ class _AccountPageState extends State<AccountPage> {
                                         barrierDismissible: false,
                                         builder: (context) {
                                           return EditProfileModal(
-                                            currentProfileImage: 'assets/images/avatars/avatar_1.png',
+                                            currentProfileImage:
+                                                _profileImageUrl.isNotEmpty
+                                                ? _profileImageUrl
+                                                : 'assets/images/profile.png',
                                           );
                                         },
                                       );
 
-                                  if (selectedImage != null) {
-                                    debugPrint(
-                                      'Selected avatar: $selectedImage',
-                                    );
-
-                                    // Save selectedImage to Firestore here
+                                  if (selectedImage != null && mounted) {
+                                    setState(() {
+                                      _profileImageUrl = selectedImage;
+                                    });
                                   }
                                 },
 
@@ -542,37 +510,6 @@ class _AccountPageState extends State<AccountPage> {
   // PROFILE IMAGE WIDGET
   // ============================================================
 
-  Widget _buildProfileImage() {
-    if (_profileImageUrl.isNotEmpty) {
-      if (_profileImageUrl.startsWith('http')) {
-        return Image.network(
-          _profileImageUrl,
-          width: double.infinity,
-          height: double.infinity,
-          fit: BoxFit.cover,
-
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) {
-              return child;
-            }
-
-            return const Center(
-              child: CircularProgressIndicator(strokeWidth: 2, color: green),
-            );
-          },
-
-          errorBuilder: (context, error, stackTrace) {
-            return Image.asset('assets/images/profile.png', fit: BoxFit.contain);
-          },
-        );
-      }
-
-      // Asset path
-      return Image.asset(_profileImageUrl, fit: BoxFit.contain);
-    }
-
-    return Image.asset('assets/images/profile.png', fit: BoxFit.contain);
-  }
 
   // ============================================================
   // USERNAME FIELD

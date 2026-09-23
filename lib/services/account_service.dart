@@ -71,21 +71,21 @@ class AccountService {
   // ============================================================
 
   Future<String> updateProfileImage(File imageFile) async {
-    final user = _auth.currentUser;
+    final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      throw Exception('No user is currently logged in.');
+      throw Exception('User not logged in');
     }
 
-    final imageUrl = await CloudinaryService.uploadProfileImage(imageFile);
+    final String? imageUrl = await CloudinaryService.uploadImage(imageFile);
 
     if (imageUrl == null || imageUrl.isEmpty) {
-      throw Exception('Failed to upload profile image.');
+      throw Exception('Cloudinary upload failed');
     }
 
-    await _firestore.collection('users').doc(user.uid).update({
+    await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
       'profileImageUrl': imageUrl,
-    });
+    }, SetOptions(merge: true));
 
     return imageUrl;
   }
@@ -94,15 +94,15 @@ class AccountService {
   // SET PROFILE IMAGE URL (used for asset selections or direct URLs)
   // ============================================================
 
-  Future<void> setProfileImageUrl(String url) async {
-    final user = _auth.currentUser;
+  Future<void> setProfileImageUrl(String imageUrl) async {
+    final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      throw Exception('No user is currently logged in.');
+      throw Exception('User not logged in');
     }
 
-    await _firestore.collection('users').doc(user.uid).update({
-      'profileImageUrl': url,
-    });
+    await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+      'profileImageUrl': imageUrl,
+    }, SetOptions(merge: true));
   }
 }
